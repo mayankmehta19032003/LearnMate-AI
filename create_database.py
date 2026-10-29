@@ -5,7 +5,7 @@
 from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_mistralai import MistralAIEmbeddings
+from llm_config import get_embeddings
 from langchain_community.vectorstores import Chroma
 
 load_dotenv()
@@ -23,7 +23,7 @@ splitter = RecursiveCharacterTextSplitter(
 chunks = splitter.split_documents(docs)
 
 #--------emmbedding-----------------------
-embeddings_model = MistralAIEmbeddings(model="mistral-embed")
+embeddings_model = get_embeddings()
 
 #----------load data in chroma----------
 vector_store = Chroma.from_documents(

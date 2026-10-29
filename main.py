@@ -1,14 +1,13 @@
 from dotenv import load_dotenv
-from langchain_mistralai import ChatMistralAI
 from langchain_community.vectorstores import Chroma
-from langchain_mistralai import MistralAIEmbeddings
+from llm_config import get_embeddings, get_llm
 from langchain_core.prompts import ChatPromptTemplate
 
 
 load_dotenv()
 
 #----create embedding model for query-------
-embedding_model = MistralAIEmbeddings(model="mistral-embed")
+embedding_model = get_embeddings()
 
 #-------load the vector db-------
 vector_store = Chroma(
@@ -27,7 +26,7 @@ retriever = vector_store.as_retriever(
 )
 
 #-----creating a model for ans it gives-----
-llm = ChatMistralAI(model = "mistral-small-2506")
+llm = get_llm()
 
 #-------prompt template--------
 prompt = ChatPromptTemplate.from_messages(

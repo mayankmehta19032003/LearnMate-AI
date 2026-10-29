@@ -1,10 +1,10 @@
 import streamlit as st
-import os
+import time
 from dotenv import load_dotenv
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_mistralai import MistralAIEmbeddings, ChatMistralAI
+from llm_config import get_embeddings, get_llm
 from langchain_community.vectorstores import Chroma
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -25,7 +25,10 @@ if "retriever" not in st.session_state:
 # ----------- FILE UPLOAD -----------
 uploaded_file = st.file_uploader("Upload a PDF", type="pdf")
 
-if uploaded_file:
+# Process each PDF only once. Streamlit re-runs this script on every
+# interaction (like typing a question), so without this check it would
+# re-embed the whole PDF each time and burn through the API quota.
+if uploaded_file and st.session_state.get("processed_file") != uploaded_file.name:
     file_path = f"temp_{uploaded_file.name}"
 
     with open(file_path, "wb") as f:
@@ -34,35 +37,43 @@ if uploaded_file:
     st.success("PDF uploaded successfully!")
 
     # ----------- LOAD & PROCESS -----------
-    with st.spinner("Processing PDF..."):
-        loader = PyPDFLoader(file_path)
-        docs = loader.load()
+    loader = PyPDFLoader(file_path)
+    docs = loader.load()
 
-        splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200
-        )
-        chunks = splitter.split_documents(docs)
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=200
+    )
+    chunks = splitter.split_documents(docs)
 
-        embeddings = MistralAIEmbeddings(model="mistral-embed")
+    embeddings = get_embeddings()
+    vector_store = Chroma(
+        persist_directory="chroma_db",
+        embedding_function=embeddings
+    )
 
-        vector_store = Chroma.from_documents(
-            documents=chunks,
-            embedding=embeddings,
-            persist_directory="chroma_db"
-        )
+    # Free tier allows 100 embedding requests/minute, so go in batches of 80
+    BATCH_SIZE = 80
+    progress = st.progress(0.0, text="Embedding PDF...")
+    for i in range(0, len(chunks), BATCH_SIZE):
+        vector_store.add_documents(chunks[i:i + BATCH_SIZE])
+        done = min(i + BATCH_SIZE, len(chunks))
+        progress.progress(done / len(chunks), text=f"Embedded {done}/{len(chunks)} chunks")
+        if done < len(chunks):
+            time.sleep(61)  # wait for the per-minute quota to reset
 
-        retriever = vector_store.as_retriever(
-            search_type="mmr",
-            search_kwargs={
-                "k": 4,
-                "fetch_k": 10,
-                "lambda_mult": 0.5
-            }
-        )
+    retriever = vector_store.as_retriever(
+        search_type="mmr",
+        search_kwargs={
+            "k": 4,
+            "fetch_k": 10,
+            "lambda_mult": 0.5
+        }
+    )
 
-        st.session_state.vector_store = vector_store
-        st.session_state.retriever = retriever
+    st.session_state.vector_store = vector_store
+    st.session_state.retriever = retriever
+    st.session_state.processed_file = uploaded_file.name
 
     st.success("RAG system ready!")
 
@@ -105,11 +116,11 @@ Question:
             "question": query
         })
 
-        llm = ChatMistralAI(model="mistral-small-2506")
+        llm = get_llm()
         response = llm.invoke(final_prompt)
 
         st.subheader("Answer:")
-        st.write(response.content)
+        st.write(response.text)
 
         with st.expander("🔍 Retrieved Context"):
             st.write(context)
