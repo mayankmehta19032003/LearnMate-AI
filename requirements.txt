@@ -1,7 +1,7 @@
 streamlit
 langchain
 langchain-community
-langchain-mistralai
+langchain-google-genai
 chromadb
 pypdf
 python-dotenv

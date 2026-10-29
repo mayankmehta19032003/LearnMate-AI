@@ -1,5 +1,5 @@
 from langchain_community.vectorstores import Chroma
-from langchain_mistralai import MistralAIEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -22,7 +22,7 @@ docs = [
 ]
 
 
-embeddings_model = MistralAIEmbeddings(model="mistral-embed")
+embeddings_model = GoogleGenerativeAIEmbeddings(model="gemini-embedding-2-preview")
 
 vector_store = Chroma.from_documents(
     documents= docs,
