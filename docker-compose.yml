@@ -1,0 +1,8 @@
+services:
+  learnmate:
+    build: .              # build the image from the Dockerfile in this folder
+    image: learnmate-ai   # name for the built image
+    ports:
+      - "8501:8501"       # HOST:CONTAINER, same as -p 8501:8501
+    env_file:
+      - .env              # same as --env-file .env
