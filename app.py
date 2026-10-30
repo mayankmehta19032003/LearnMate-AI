@@ -53,14 +53,13 @@ if uploaded_file and st.session_state.get("processed_file") != uploaded_file.nam
     )
 
     # Free tier allows 100 embedding requests/minute, so go in batches of 80
-    BATCH_SIZE = 80
+    BATCH_SIZE = 256
     progress = st.progress(0.0, text="Embedding PDF...")
     for i in range(0, len(chunks), BATCH_SIZE):
         vector_store.add_documents(chunks[i:i + BATCH_SIZE])
         done = min(i + BATCH_SIZE, len(chunks))
         progress.progress(done / len(chunks), text=f"Embedded {done}/{len(chunks)} chunks")
-        if done < len(chunks):
-            time.sleep(61)  # wait for the per-minute quota to reset
+        
 
     retriever = vector_store.as_retriever(
         search_type="mmr",
